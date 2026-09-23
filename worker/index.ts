@@ -1,4 +1,4 @@
-import { TypeSafeClient, score } from "@typesafe-ai/sdk";
+import { TypeSafeClient, noul, score } from "@typesafe-ai/sdk";
 
 interface Env {
   AI: { run(model: string, input: object): Promise<{ choices: { message: { content: string } }[] }> };
@@ -12,13 +12,13 @@ Messages on the right side were sent by the person who took the screenshot: star
 Messages on the left side: start those lines with "Them:".
 One message per line. Keep emoji. Skip timestamps, names, read receipts and app buttons. Output only the transcript.`;
 
-// Level 0 is "into you", level 4 is fully friendzoned. src/main.tsx has one caption per level, in this order.
+// Level 0 is "cooked", level 4 is "down bad". src/main.tsx has one caption per level, in this order.
 const LEVELS = [
-  "Them flirts with Me or shows clear romantic interest: compliments on looks, pet names, asking Me out or for time alone",
-  "Them is warm and playful with Me and curious about Me, with some hints of romantic interest",
-  "Them is friendly and polite with Me, with no romantic signals either way",
-  "Them treats Me as a friend: platonic plans, calls Me buddy or bestie, talks about crushes on other people",
-  "Them says they only see Me as a friend or sibling, turns Me down, or is dating someone else",
+  "Them gives dry one-word replies, ignores Me's questions, or turns Me down",
+  "Them replies politely but briefly, rarely asks Me anything, and doesn't build on the conversation",
+  "Them is friendly and engaged with Me, with no romantic signals either way",
+  "Them puts effort into talking to Me: long replies, asks Me questions, playful emoji, keeps the chat going",
+  "Them flirts with Me, compliments Me, suggests plans or time alone, or says they like Me",
 ] as const;
 
 async function transcribe(env: Env, images: string[]) {
@@ -44,9 +44,19 @@ export default {
 
     const jev = new TypeSafeClient({ apiKey: env.TYPESAFE_AI_API_KEY });
     const { answers } = await jev.systemOne({
-      state: { conversation, roles: "Me is the person asking. Them is the person Me has a crush on." },
-      questions: { friendzone: score("Based on how Them talks to Me, how does Them see Me?", LEVELS) },
+      state: { conversation, roles: "Me is the person asking. Them is the person Me is texting." },
+      questions: {
+        interest: score("Based on how Them texts Me, how interested is Them in Me?", LEVELS),
+        friendzoned: noul("Them says they only see Me as a friend or family, or that they are dating someone else"),
+      },
     });
-    return Response.json({ score: answers.friendzone.score, confidence: answers.friendzone.confidence });
+    // A Score should measure one thing, so "friend only" is its own yes/no question. It outranks effort:
+    // a warm "you're like a brother to me" is still a no.
+    const { interest, friendzoned } = answers;
+    return Response.json(
+      friendzoned.noul >= 0.5
+        ? { score: 0, confidence: friendzoned.noul, friendzoned: true }
+        : { score: interest.score, confidence: interest.confidence, friendzoned: false },
+    );
   },
 };

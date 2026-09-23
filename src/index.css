@@ -1,19 +1,53 @@
 @import "tailwindcss";
 
-/* Candy conversation-heart palette. */
+/* Pastel candy hearts on a Valentine's-box red. The page turns hot pink or ash with the verdict. */
 @theme {
   --font-sans: "Rubik", system-ui, sans-serif;
   --font-display: "Bagel Fat One", system-ui, sans-serif;
-  --color-lilac: #e9e1f7;
+  --color-cherry: #e8363f;
+  --color-hotpink: #ee3d8b;
+  --color-ash: #77737f;
+  --color-cream: #fff3e3;
+  --color-plum: #3a2140;
   --color-heart: #f7b7cf;
+  --color-heart-side: #e58fb1;
   --color-peach: #f8c9a6;
-  --color-lemon: #f6ea9a;
+  --color-lemon: #ffe66d;
   --color-mint: #bfe8cf;
   --color-sky: #c9d6f2;
   --color-stone: #cfc8dd;
+  --color-stone-side: #a9a1ba;
   --color-stamp: #d8232a;
-  --color-plum: #3a2140;
+  --animate-marquee: marquee 40s linear infinite;
+
+  @keyframes marquee {
+    to {
+      transform: translateX(-50%);
+    }
+  }
+}
+
+/* Chunky candy-print type: the letters sit on a solid plum side. */
+@utility extrude {
+  text-shadow:
+    0 1px 0 var(--color-plum),
+    0 2px 0 var(--color-plum),
+    0 3px 0 var(--color-plum),
+    0 4px 0 var(--color-plum),
+    0 5px 0 var(--color-plum),
+    0 6px 0 var(--color-plum);
+}
+
+/* Film grain over everything so flat colour reads as printed candy. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.2;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 /* Phones like the iPhone SE: tighten spacing so the gauge keeps its size. */
-@custom-variant short (@media (max-height: 720px) and (width < 48rem));
+@custom-variant short (@media (max-height: 720px) and (width < 64rem));

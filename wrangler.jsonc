@@ -1,5 +1,5 @@
 {
-  "name": "am-i-friendzoned",
+  "name": "are-they-into-you",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-01",
   // Serves the built React app; requests that aren't files fall through to the worker.
@@ -7,5 +7,5 @@
   // Workers AI, used to read screenshots.
   "ai": { "binding": "AI" },
   // Change or remove this if you deploy your own copy.
-  "routes": [{ "pattern": "friendzone.vincenth19.com", "custom_domain": true }]
+  "routes": [{ "pattern": "intoyou.vincenth19.com", "custom_domain": true }]
 }
