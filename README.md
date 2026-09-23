@@ -25,24 +25,26 @@ The whole app is under 400 lines of code.
 
 ## Architecture
 
-```
-┌─────────────────── Visitor's browser ───────────────────┐
-│  React page (src/)                                      │
-│  form · meter · heart / tombstone animations            │
-└────────────────────────────┬────────────────────────────┘
-                             │  POST /api/judge  { text, images }
-                             ▼
-┌─────────────── Cloudflare Worker (worker/) ─────────────┐
-│  holds the Jev API key as a secret                      │
-│                                                         │
-│  1. screenshots ──▶ Gemma 4 on Workers AI               │
-│                     returns "Me: …" / "Them: …" lines   │
-│  2. conversation ──▶ Jev (TypeSafe API)                 │
-│                     returns { score, confidence }       │
-└────────────────────────────┬────────────────────────────┘
-                             │  { score, confidence }
-                             ▼
-                    back to the page
+```mermaid
+sequenceDiagram
+  box Visitor's browser
+    participant Page as React page
+  end
+  box Cloudflare
+    participant Worker as Worker (/api/judge)<br/>keeps the Jev key secret
+    participant Gemma as Workers AI<br/>(Gemma 4)
+  end
+  participant Jev as Jev<br/>(TypeSafe API)
+
+  Page->>Worker: chat text + screenshots
+  opt only if there are screenshots
+    Worker->>Gemma: screenshots
+    Gemma-->>Worker: "Me: …" / "Them: …" transcript
+  end
+  Worker->>Jev: conversation + one Score question
+  Jev-->>Worker: score + confidence
+  Worker-->>Page: score + confidence
+  Note over Page: move the needle,<br/>pick heart or tombstone
 ```
 
 There are only two parts you write: a **page** that runs in the browser and a **Worker** that runs on Cloudflare. Everything else is a service they call.
