@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+/* Candy conversation-heart palette. */
+@theme {
+  --font-sans: "Rubik", system-ui, sans-serif;
+  --font-display: "Bagel Fat One", system-ui, sans-serif;
+  --color-lilac: #e9e1f7;
+  --color-heart: #f7b7cf;
+  --color-peach: #f8c9a6;
+  --color-lemon: #f6ea9a;
+  --color-mint: #bfe8cf;
+  --color-sky: #c9d6f2;
+  --color-stone: #cfc8dd;
+  --color-stamp: #d8232a;
+  --color-plum: #3a2140;
+}
+
+/* Phones like the iPhone SE: tighten spacing so the gauge keeps its size. */
+@custom-variant short (@media (max-height: 720px) and (width < 48rem));
