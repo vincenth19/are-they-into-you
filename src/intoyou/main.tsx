@@ -49,7 +49,7 @@ function App() {
     setError("");
     try {
       const [res] = await Promise.all([
-        fetch("/api/judge", { method: "POST", body: JSON.stringify({ text, images: shots }) }),
+        fetch("/api/intoyou", { method: "POST", body: JSON.stringify({ text, images: shots }) }),
         new Promise((resolve) => setTimeout(resolve, 2500)), // let the suspense build
       ]);
       if (!res.ok) throw new Error();

@@ -1,32 +1,71 @@
-# Are they into you? 💘
+# Jev testing
 
-Paste your DMs or drop in screenshots, and a meter tells you where you stand: **Cooked** or **Down bad**.
+Small apps built on **[Jev](https://docs.typesafe.ai/)**, TypeSafe AI's model that returns typed answers with calibrated probabilities instead of text.
 
-**Live: https://intoyou.vincenth19.com**
+**Live: https://jev.vincenth19.com**
 
-![The site: a worried candy heart under a meter that runs from Cooked to Down bad](docs/screenshot.png)
+| App | What it does |
+| --- | --- |
+| [Are they into you? 💘](https://jev.vincenth19.com/intoyou/) | Paste your DMs or screenshots, and a meter tells you where you stand: **Cooked** or **Down bad**. |
+| [Finder 🔎](https://jev.vincenth19.com/finder/) | Open a PDF and ask it questions. The answers are highlighted in the document. |
 
-It's a joke site, but also a small, complete example you can learn from. It shows how to:
+They're small on purpose, so you can learn from them. Together they show how to:
 
-- get **typed, scored answers** from an AI model (Jev by [TypeSafe AI](https://docs.typesafe.ai/)) instead of a paragraph of text,
-- **combine two simple questions** in code instead of asking one complicated one,
+- get **typed, scored answers** from an AI model instead of a paragraph of text,
+- **combine simple questions** in code instead of asking one complicated one,
+- **search a document and cite the exact line**, with no chatbot involved,
 - **read chat screenshots** with an AI vision model,
 - keep an **API key secret** while the page runs in the visitor's browser,
-- ship the page and its backend together on **Cloudflare Workers** with one command.
+- ship several pages and their backend together on **Cloudflare Workers** with one command.
 
-The whole app is under 450 lines of code.
+## How the site is built
 
-## What happens when you press "Check the vibe"
+There are only two kinds of parts you write:
 
-1. Your browser sends the chat (typed text, screenshots, or both) to the site's small backend.
-2. If there are screenshots, the backend asks a vision model to type out the messages and mark who sent each one: `Me:` or `Them:`.
-3. The backend sends the conversation to Jev with two questions:
+- **Pages** that run in the browser: one per app, plus the index that links to them.
+- **One Worker** that runs on Cloudflare and answers each app's API: `/api/intoyou` and `/api/finder`.
+
+Everything else is a service they call.
+
+### The pages: React
+
+**What they are:** each app is one HTML page. [React](https://react.dev) updates it in place as you type, submit, and get a result. [Vite](https://vite.dev) builds all the pages in one go ([vite.config.ts](vite.config.ts) lists them). [Tailwind CSS](https://tailwindcss.com) handles styling and [Motion](https://motion.dev) the animations.
+
+**Why:** each app is a single interactive screen, so there's nothing to render on a server.
+
+### The backend: a Cloudflare Worker
+
+**What it is:** a small function that runs on Cloudflare's servers each time a request comes in. There's no server for you to manage. [worker/index.ts](worker/index.ts) is a short router that sends each `/api/…` request to its app's handler.
+
+**Why you need a backend at all:** the Jev API key. A page runs on the visitor's computer, so anything in it (including an API key) can be read by anyone who opens the browser's developer tools. They could copy the key and spend your credit. The Worker stores the key as a Cloudflare *secret* and calls Jev on the page's behalf, so the key never reaches the browser.
+
+**Why Cloudflare:** the same Worker also serves the pages, so one `deploy` publishes everything on one domain, and the pages call `/api/…` on their own site without any cross-site setup. Cloudflare also runs AI models next to the Worker, which is how Into You reads screenshots. The free tier is enough for sites like these.
+
+### The judgment: Jev
+
+**What it is:** Jev is a model built for software to call. You give it some content (the *state*) and typed questions, and it returns typed answers, each with probabilities:
+
+| Question type | Answers | Example |
+| --- | --- | --- |
+| Choice | Which option from a set | "Which line answers this question?" |
+| Noul | Probability the answer is yes | "Did they say you're just a friend?" |
+| Score | Position on an ordered scale | "How interested are they?" |
+
+**Why not just ask a chatbot:** a chatbot replies with a paragraph. Your code would have to dig the answer out of it, the wording changes between runs, and there's no honest measure of how sure it is. Jev returns numbers and ids your code can use directly, plus a confidence your code can use to decide what to do. It's also fast (about a second) and cheap (fractions of a cent per request).
+
+## Are they into you? 💘
+
+![A worried candy heart under a meter that runs from Cooked to Down bad](docs/screenshot.png)
+
+### What happens when you press "Check the vibe"
+
+1. Your browser sends the chat (typed text, screenshots, or both) to the Worker.
+2. If there are screenshots, the Worker asks a vision model to type out the messages and mark who sent each one: `Me:` or `Them:`.
+3. The Worker sends the conversation to Jev with two questions:
    - **How interested are they?** On a scale from 0 (dry one-word replies) to 4 (openly flirting).
    - **Did they friendzone you?** Yes or no: did they say you're "just a friend", or mention a partner?
 4. Jev answers each one with a number and how sure it is.
 5. The page moves the needle and picks the ending. If they're clearly not interested, or they friendzoned you, the heart becomes a tombstone and the page turns grey. Otherwise the heart is happy and the page turns pink.
-
-## Architecture
 
 ```mermaid
 sequenceDiagram
@@ -34,7 +73,7 @@ sequenceDiagram
     participant Page as React page
   end
   box Cloudflare
-    participant Worker as Worker (/api/judge)<br/>keeps the Jev key secret
+    participant Worker as Worker (/api/intoyou)<br/>keeps the Jev key secret
     participant Gemma as Workers AI<br/>(Gemma 4)
   end
   participant Jev as Jev<br/>(TypeSafe API)
@@ -50,49 +89,19 @@ sequenceDiagram
   Note over Page: move the needle,<br/>pick heart or tombstone
 ```
 
-There are only two parts you write: a **page** that runs in the browser and a **Worker** that runs on Cloudflare. Everything else is a service they call.
-
-### The page: a React single-page app
-
-**What it is:** the whole site is one HTML page. [React](https://react.dev) updates it in place as you type, submit, and get a result. [Vite](https://vite.dev) bundles it into a few static files.
-
-**Why:** it's one interactive screen with no other pages, so there's nothing to render on a server. [Tailwind CSS](https://tailwindcss.com) handles styling and [Motion](https://motion.dev) handles the animations: the trembling heart, the swinging needle, the falling tombstone.
-
-### The backend: a Cloudflare Worker
-
-**What it is:** a small function that runs on Cloudflare's servers each time a request comes in. There's no server for you to manage.
-
-**Why you need a backend at all:** the Jev API key. The page runs on the visitor's computer, so anything in it (including an API key) can be read by anyone who opens the browser's developer tools. They could copy the key and spend your credit. The Worker stores the key as a Cloudflare *secret* and calls Jev on the page's behalf, so the key never reaches the browser.
-
-**Why Cloudflare:** the same Worker also serves the page's files, so one `deploy` publishes the frontend and backend together on one domain. The page calls `/api/judge` on its own site, so there's no cross-site setup. Cloudflare also runs AI models next to the Worker, which is how the screenshot reading works. The free tier is enough for a site like this.
-
 ### Reading screenshots: Gemma 4 on Workers AI
 
 **What it is:** [Workers AI](https://developers.cloudflare.com/workers-ai/) runs open AI models on Cloudflare. The Worker reaches it through a *binding*: a connection declared in `wrangler.jsonc` that shows up in code as `env.AI`. You don't need an extra API key.
 
 **Why it's needed:** Jev only reads text, so screenshots have to become text first.
 
-**Why a vision model instead of classic OCR** (optical character recognition, the tech that turns pictures of text into text): classic OCR tools like Tesseract give you the words but not *who said them*, and that's the whole question. A vision model understands the layout of a chat: bubbles on the right are yours, bubbles on the left are theirs. It's told to write the messages out as `Me:` and `Them:` lines.
+**Why a vision model instead of classic OCR** (optical character recognition, the tech that turns pictures of text into text): classic OCR tools like Tesseract give you the words but not *who said them*, and that's the whole question. A vision model understands the layout of a chat: bubbles on the right are yours, bubbles on the left are theirs.
 
 **Why thinking is turned off:** Gemma 4 can "think" before answering. For copying text out of an image that doesn't help. With thinking on, each screenshot took about 45 seconds and cost 3–4 times more. With it off, it takes about 8 seconds with the same result.
 
-### The judgment: Jev
+### The Jev questions
 
-**What it is:** [Jev](https://docs.typesafe.ai/) is a model built for software to call. You give it some content (the *state*) and typed questions, and it returns typed answers: a choice, a yes-probability, or a score, each with probabilities and a confidence.
-
-**Why not just ask a chatbot "are they into me?":** a chatbot replies with a paragraph. Your code would have to dig a number out of it, the wording changes between runs, and there's no honest measure of how sure it is. Jev returns numbers the page can use directly to move the needle, plus a confidence the page can use to decide what to show. It's also cheap: a check costs about $0.00002.
-
-## The Jev questions, step by step
-
-Jev has three question types:
-
-| Type | Answers | Example |
-| --- | --- | --- |
-| Choice | Which option from a set | "Which team handles this ticket?" |
-| Noul | Probability the answer is yes | "Did they say you're just a friend?" |
-| Score | Position on an ordered scale | "How interested are they?" |
-
-This app uses a **Score** and a **Noul**, sent together in one request. From [worker/index.ts](worker/index.ts):
+From [worker/intoyou.ts](worker/intoyou.ts):
 
 ```ts
 jev.systemOne({
@@ -164,7 +173,7 @@ friendzoned.noul >= 0.5
 
 ### Confidence decides the tombstone
 
-The score says *how* interested they are. Confidence says *how sure* Jev is. The page shows the tombstone only when the score is low *and* Jev is sure about it ([src/main.tsx](src/main.tsx)):
+The score says *how* interested they are. Confidence says *how sure* Jev is. The page shows the tombstone only when the score is low *and* Jev is sure about it ([src/intoyou/main.tsx](src/intoyou/main.tsx)):
 
 ```ts
 const cooked = verdict.score <= 1.5 && verdict.confidence >= 0.5;
@@ -184,13 +193,78 @@ Everything else gets the happy heart, so mixed signals get the benefit of the do
 
 "ya" … "friends" is a good test of the Noul: the word "friends" is there, but nobody is being friendzoned, and Jev can tell.
 
-## What it costs
+### What it costs
 
 | Part | Cost per check |
 | --- | --- |
 | Jev | About 510 input tokens at $0.042 per million, so roughly $0.00002. Output is free. |
 | Reading screenshots | About 5 *neurons* (Cloudflare's usage unit) per screenshot. Workers AI includes 10,000 free neurons a day, which is about 400 checks with 5 screenshots each. After that, $0.011 per 1,000 neurons. |
-| Worker and page files | Covered by Cloudflare's free tier or the $5 Workers plan. |
+
+## Finder 🔎
+
+Open a PDF and ask it questions. Each answer is a quote from the PDF, highlighted where it appears, with a numbered badge that links it to its question. If the PDF doesn't answer a question, Finder says so.
+
+### What happens when you ask a question
+
+1. **In your browser,** [pdf-inspector](https://github.com/firecrawl/pdf-inspector) (compiled to WebAssembly) pulls the text out of the PDF in reading order. Finder splits it into sentences and notes which page each is on. The PDF itself is never uploaded.
+2. The sentences and your question go to the Worker, which asks Jev two questions about them (below).
+3. Jev returns which sentences answer the question, and how likely it is that any of them do.
+4. **Back in your browser,** [pdf.js](https://mozilla.github.io/pdf.js/) draws the pages, finds each cited sentence on its page, and highlights it. Clicking a highlight shows its finding; clicking a finding scrolls the PDF to it.
+
+### The Jev pattern: point at a line
+
+This is Jev's own [line-by-line search](https://docs.typesafe.ai/cookbooks/semantic_find) recipe. From [worker/finder.ts](worker/finder.ts):
+
+```ts
+jev.systemOne({
+  // Every sentence gets an id: "L0| …", "L1| …"
+  state: ids.map((id, i) => `${id}| ${lines[i]}`).join("\n"),
+  questions: {
+    where: choice(`Which line of the document contains the answer to: "${question}"?`,
+      Object.fromEntries(ids.map((id) => [id, null]))),
+    exists: noul(`Does any line of the document address or answer: "${question}"?`, { … }),
+  },
+});
+```
+
+- **`where`** is a Choice whose options are the sentence ids. Jev returns a probability for every sentence, so "pick an option" becomes "point at a sentence". The id it points at *is* the citation. It can only point at text that exists, so there's no invented quote to check.
+- **`exists`** is a Noul, because a Choice always spreads 100% across its options: some sentence ranks first even when none answers the question. The Noul catches that.
+
+When an answer spans several sentences, Jev splits the probability between them, so Finder shows every sentence above 15%.
+
+### Real results
+
+Eight questions about a 5-page research update on weather forecasts for grain growers (102 sentences), sent together in one request:
+
+| Question | Where Jev pointed | Right? |
+| --- | --- | --- |
+| How much canola did the growers sow, and what happened? | "…sow 1,000ha of canola…" and "…fell dramatically (from over 60 mm to just 2 mm)…" (split 59% / 41%) | ✅ both halves |
+| Why did the Yr.no forecast keep changing? | "…thunderstorms are localised events…" (100%) | ✅ |
+| How much rain fell in Dubbo on 25 November? | "Dubbo 0.2 mm" (99%) | ✅ |
+| Who funds the Agri-Climate Outlooks project? | "With funding from Agricultural Innovation Australia…" (92%) | ✅ |
+| How can I contact the team? | the email line and the contact details (split 53% / 45%) | ✅ both |
+| When did the Bureau warn about the storms? | "…video update… released on 8 November 2023…" (96%) | ✅ |
+| What is the price of canola seed? | `exists`: **2%**, so "Not in this PDF" | ✅ |
+| Does the paper recommend relying on Yr.no? | the conclusion's "rather than to rely on one popular online resource" | ✅ |
+
+All eight took **about 1 second and cost $0.0005** together (11,440 input tokens).
+
+### Why no LLM?
+
+Finding and citing needs none: the question drops into a fixed template. An LLM would only help with things Jev can't do:
+
+- **Writing a sentence-long answer** from the cited lines. Jev doesn't generate text. A small model could, from just the cited sentences, as an add-on.
+- **Splitting a compound question** ("who funds it and how do I contact them?") into separate searches.
+
+### Finding the highlight
+
+pdf-inspector's browser build gives clean text in reading order, but not where each word sits on the page. pdf.js gives positions. Finder matches the two by comparing letters and digits only, so differences in spacing, hyphenation and punctuation don't matter. On the sample paper it located 101 of 102 sentences; the one miss was a chart's axis labels.
+
+### Limits
+
+- **Length:** one Choice takes up to 255 options, so longer PDFs are searched in chunks of 250 sentences, all at the same time. Finder caps a PDF at 2,000 sentences (roughly 80 pages).
+- **Scanned PDFs** have no text to extract and would need OCR first.
+- **Highlights cover whole printed lines,** so the end of a highlight can include the start of the next sentence.
 
 ## Run it yourself
 
@@ -203,8 +277,8 @@ You need:
 **1. Get the code and install packages**
 
 ```bash
-git clone https://github.com/vincenth19/are-they-into-you.git
-cd are-they-into-you
+git clone https://github.com/vincenth19/jev-testing.git
+cd jev-testing
 bun install
 ```
 
@@ -220,7 +294,7 @@ echo "TYPESAFE_AI_API_KEY=your-key" > .env
 bunx wrangler login
 ```
 
-**4. Start it locally.** This runs the page and the Worker together at http://localhost:5173 and reloads when you edit files.
+**4. Start it locally.** This runs every page and the Worker together at http://localhost:5173 (the apps are at `/intoyou/` and `/finder/`) and reloads when you edit files.
 
 ```bash
 bun dev
@@ -239,16 +313,18 @@ bunx wrangler secret put TYPESAFE_AI_API_KEY
 
 | File | What it does |
 | --- | --- |
-| [worker/index.ts](worker/index.ts) | The backend: reads screenshots with Gemma, asks Jev both questions, combines the answers |
-| [src/main.tsx](src/main.tsx) | The page: form, result text, tombstone rule, background colour |
-| [src/Stage.tsx](src/Stage.tsx) | The gauge (meter, needle, heart, tombstone) and the scrolling ticker, drawn in SVG and animated with Motion |
-| [src/index.css](src/index.css) | Colours, fonts, the chunky lettering and the film-grain texture |
+| [index.html](index.html) | The index page that links to each app |
+| [worker/index.ts](worker/index.ts) | Routes each `/api/…` request to its app |
+| [worker/intoyou.ts](worker/intoyou.ts) | Into You's backend: reads screenshots with Gemma, asks Jev both questions, combines the answers |
+| [worker/finder.ts](worker/finder.ts) | Finder's backend: searches the sentences with Jev, in chunks |
+| [src/intoyou/](src/intoyou/) | Into You's page: the gauge, heart and tombstone ([Stage.tsx](src/intoyou/Stage.tsx)), the form and verdict ([main.tsx](src/intoyou/main.tsx)), colours and textures ([index.css](src/intoyou/index.css)) |
+| [src/finder/](src/finder/) | Finder's page: PDF reading and highlight placement ([pdf.ts](src/finder/pdf.ts)), the viewer and findings panel ([main.tsx](src/finder/main.tsx)) |
 | [wrangler.jsonc](wrangler.jsonc) | Cloudflare config: page files, the AI binding, the custom domain |
-| [vite.config.ts](vite.config.ts) | Build config; the Cloudflare plugin lets `bun dev` run the Worker locally |
+| [vite.config.ts](vite.config.ts) | Build config: the list of pages, and the Cloudflare plugin that lets `bun dev` run the Worker locally |
 
 ## Privacy
 
-The Worker doesn't store anything. Your text and screenshots are sent to Cloudflare Workers AI and TypeSafe to be processed.
+The Worker doesn't store anything. Into You sends your text and screenshots to Cloudflare Workers AI and TypeSafe to be processed. Finder reads your PDF in your browser and sends only its extracted text and your questions to TypeSafe.
 
 ## License
 

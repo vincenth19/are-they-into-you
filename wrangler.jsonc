@@ -1,11 +1,11 @@
 {
-  "name": "are-they-into-you",
+  "name": "jev-testing",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-01",
-  // Serves the built React app; requests that aren't files fall through to the worker.
-  "assets": { "not_found_handling": "single-page-application" },
+  // Serves each app's page; requests that aren't files (the /api routes) fall through to the worker.
+  "assets": {},
   // Workers AI, used to read screenshots.
   "ai": { "binding": "AI" },
   // Change or remove this if you deploy your own copy.
-  "routes": [{ "pattern": "intoyou.vincenth19.com", "custom_domain": true }]
+  "routes": [{ "pattern": "jev.vincenth19.com", "custom_domain": true }]
 }

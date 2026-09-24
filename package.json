@@ -1,5 +1,5 @@
 {
-  "name": "are-they-into-you",
+  "name": "jev-testing",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,8 +8,10 @@
     "deploy": "bun run build && wrangler deploy"
   },
   "dependencies": {
+    "@firecrawl/pdf-inspector-wasm": "^1.24.0",
     "@typesafe-ai/sdk": "^0.6.0",
     "motion": "^13.4.1",
+    "pdfjs-dist": "^6.3.289",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
